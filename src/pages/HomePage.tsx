@@ -51,16 +51,8 @@ export default function HomePage() {
           color: '#172B4D',
           textAlign: 'center',
         }}>
-          Claude Desktop Demos
+          デモ一覧
         </h1>
-        <p style={{
-          margin: '0 0 32px',
-          fontSize: '14px',
-          color: '#6B778C',
-          textAlign: 'center',
-        }}>
-          Claude Desktopで作成したデモ一覧
-        </p>
 
         <div style={{
           display: 'flex',
