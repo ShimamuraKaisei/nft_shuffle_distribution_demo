@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Types
 interface LineupItem {
@@ -248,113 +249,230 @@ const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle:
   );
 };
 
-// Animation screen - Mystery Card Version
-const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
-  const [rotation, setRotation] = useState(0);
+// ===== Shuffle Animation Sub-components =====
 
-  useEffect(() => {
-    let animationFrame: number;
-    const startTime = Date.now();
-    const duration = 3000; // 3秒
-    const speed = 5; // 一定の回転速度（遅め）
+type AnimationPhase = 'buildup' | 'shuffle' | 'reveal';
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      setRotation(prev => prev + speed);
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      } else {
-        setTimeout(onComplete, 300);
-      }
-    };
-
-    animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [onComplete]);
+// Particle Field - 渦巻き状のパーティクルエフェクト
+const ParticleField = ({ phase }: { phase: AnimationPhase }) => {
+  const particles = useMemo(() =>
+    Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      angle: (i / 30) * Math.PI * 2,
+      radius: 150 + Math.random() * 100,
+      size: 4 + Math.random() * 6,
+      delay: i * 0.03,
+    })),
+  []);
 
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0052CC 0%, #00308F 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
+      position: 'absolute',
+      inset: 0,
+      overflow: 'hidden',
+      pointerEvents: 'none',
     }}>
-      {/* Particles */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        overflow: 'hidden',
-        pointerEvents: 'none',
-      }}>
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
+      {particles.map((p) => {
+        const x = Math.cos(p.angle) * p.radius;
+        const y = Math.sin(p.angle) * p.radius;
+
+        return (
+          <motion.div
+            key={p.id}
+            initial={{
+              x: 0,
+              y: 0,
+              opacity: 0,
+              scale: 0,
+            }}
+            animate={phase === 'buildup' ? {
+              x: 0,
+              y: 0,
+              opacity: 0.8,
+              scale: 1.5,
+            } : phase === 'shuffle' ? {
+              x: [0, x * 0.5, x],
+              y: [0, y * 0.5, y],
+              opacity: [0.8, 1, 0.4],
+              scale: [1.5, 1, 0.5],
+              rotate: [0, 180, 360],
+            } : {
+              x: x * 2,
+              y: y * 2,
+              opacity: 0,
+              scale: 0,
+            }}
+            transition={{
+              duration: phase === 'shuffle' ? 1.5 : phase === 'reveal' ? 0.5 : 0.8,
+              delay: p.delay,
+              ease: phase === 'shuffle' ? 'linear' : 'easeOut',
+              repeat: phase === 'shuffle' ? Infinity : 0,
+            }}
             style={{
               position: 'absolute',
-              width: '8px',
-              height: '8px',
-              background: 'rgba(255,255,255,0.3)',
+              left: '50%',
+              top: '50%',
+              width: p.size,
+              height: p.size,
+              marginLeft: -p.size / 2,
+              marginTop: -p.size / 2,
+              background: `radial-gradient(circle, rgba(255,200,100,0.9) 0%, rgba(255,105,0,0.6) 100%)`,
               borderRadius: '50%',
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
+              boxShadow: '0 0 10px rgba(255,150,50,0.8)',
             }}
           />
-        ))}
-      </div>
+        );
+      })}
+    </div>
+  );
+};
 
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.3; }
-          50% { transform: translateY(-30px) rotate(180deg); opacity: 0.8; }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-      `}</style>
+// Energy Ring - パルス状のエネルギーリング
+const EnergyRing = ({ phase }: { phase: AnimationPhase }) => {
+  if (phase === 'buildup') return null;
 
-      <h2 style={{
-        color: '#fff',
-        fontSize: '24px',
-        fontWeight: '700',
-        marginBottom: '40px',
-        textAlign: 'center',
-        textShadow: '0 2px 10px rgba(0,0,0,0.3)',
-      }}>
-        しばらくお待ちください...
-      </h2>
+  return (
+    <>
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          initial={{ scale: 0.3, opacity: 0 }}
+          animate={phase === 'shuffle' ? {
+            scale: [0.3, 1.5, 2.5],
+            opacity: [0, 0.8, 0],
+          } : {
+            scale: 3,
+            opacity: 0,
+          }}
+          transition={{
+            duration: 1.2,
+            delay: i * 0.4,
+            repeat: phase === 'shuffle' ? Infinity : 0,
+            ease: 'easeOut',
+          }}
+          style={{
+            position: 'absolute',
+            width: 280,
+            height: 360,
+            border: '2px solid',
+            borderColor: 'rgba(255, 150, 50, 0.6)',
+            borderRadius: 24,
+            boxShadow: '0 0 20px rgba(255, 105, 0, 0.4), inset 0 0 20px rgba(255, 105, 0, 0.2)',
+          }}
+        />
+      ))}
+    </>
+  );
+};
 
-      {/* Mystery Card */}
-      <div style={{
-        width: '260px',
-        height: '340px',
-        perspective: '1000px',
-      }}>
-        <div style={{
+// Mystery Card - 3D回転するカード
+const MysteryCard = ({ phase }: { phase: AnimationPhase }) => {
+  const cardVariants = {
+    buildup: {
+      scale: 0.9,
+      y: 0,
+      rotateY: 0,
+      rotateX: 0,
+      rotateZ: 0,
+    },
+    shuffle: {
+      scale: 1,
+      y: [0, -15, 0, -10, 0],
+      rotateY: [0, 360, 720, 1080, 1440],
+      rotateX: [0, 8, -8, 8, 0],
+      rotateZ: [0, 2, -2, 2, 0],
+    },
+    reveal: {
+      scale: 1.08,
+      y: 0,
+      rotateY: 1440,
+      rotateX: 0,
+      rotateZ: 0,
+    },
+  };
+
+  const glowVariants = {
+    buildup: {
+      boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+    },
+    shuffle: {
+      boxShadow: [
+        '0 0 40px rgba(255, 105, 0, 0.6), 0 0 80px rgba(255, 150, 50, 0.4)',
+        '0 0 60px rgba(255, 105, 0, 0.8), 0 0 100px rgba(255, 150, 50, 0.6)',
+        '0 0 40px rgba(255, 105, 0, 0.6), 0 0 80px rgba(255, 150, 50, 0.4)',
+      ],
+    },
+    reveal: {
+      boxShadow: '0 0 100px rgba(255, 105, 0, 1), 0 0 150px rgba(255, 200, 100, 0.8)',
+    },
+  };
+
+  return (
+    <motion.div
+      style={{
+        width: 260,
+        height: 340,
+        perspective: 1200,
+      }}
+    >
+      <motion.div
+        variants={cardVariants}
+        initial="buildup"
+        animate={phase}
+        transition={{
+          duration: phase === 'shuffle' ? 1.5 : phase === 'reveal' ? 0.6 : 0.8,
+          ease: phase === 'reveal' ? [0.16, 1, 0.3, 1] : 'easeInOut',
+          repeat: phase === 'shuffle' ? Infinity : 0,
+        }}
+        style={{
           width: '100%',
           height: '100%',
-          background: 'linear-gradient(135deg, #FF6900 0%, #FF8533 100%)',
-          borderRadius: '20px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: `rotateY(${rotation}deg)`,
           transformStyle: 'preserve-3d',
-          transition: 'transform 0.05s linear',
-        }}>
+        }}
+      >
+        <motion.div
+          variants={glowVariants}
+          initial="buildup"
+          animate={phase}
+          transition={{
+            duration: phase === 'shuffle' ? 0.5 : 0.6,
+            repeat: phase === 'shuffle' ? Infinity : 0,
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(135deg, #FF6900 0%, #FF8533 50%, #FFB366 100%)',
+            borderRadius: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backfaceVisibility: 'hidden',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Shimmer effect overlay */}
+          <motion.div
+            animate={phase === 'shuffle' ? {
+              x: ['-200%', '200%'],
+            } : {}}
+            transition={{
+              duration: 0.8,
+              repeat: phase === 'shuffle' ? Infinity : 0,
+              ease: 'linear',
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
+              pointerEvents: 'none',
+            }}
+          />
+
           {/* Card Pattern */}
           <div style={{
             position: 'absolute',
@@ -362,52 +480,185 @@ const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            borderRadius: '20px',
-            opacity: 0.1,
+            borderRadius: 20,
+            opacity: 0.15,
             backgroundImage: `
               repeating-linear-gradient(
                 45deg,
                 transparent,
-                transparent 10px,
-                rgba(255,255,255,0.1) 10px,
-                rgba(255,255,255,0.1) 20px
+                transparent 8px,
+                rgba(255,255,255,0.2) 8px,
+                rgba(255,255,255,0.2) 16px
               )
             `,
           }} />
 
-          {/* Question Mark */}
-          <div style={{
-            width: '120px',
-            height: '120px',
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '20px',
-          }}>
-            <span style={{
-              fontSize: '72px',
-              fontWeight: '700',
-              color: '#fff',
-              textShadow: '0 4px 20px rgba(0,0,0,0.2)',
-            }}>
+          {/* Question Mark Container */}
+          <motion.div
+            animate={phase === 'shuffle' ? {
+              scale: [1, 1.15, 1],
+              rotate: [0, 5, -5, 0],
+            } : phase === 'reveal' ? {
+              scale: 1.1,
+            } : {}}
+            transition={{
+              duration: 0.3,
+              repeat: phase === 'shuffle' ? Infinity : 0,
+            }}
+            style={{
+              width: 120,
+              height: 120,
+              background: 'rgba(255,255,255,0.25)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 20,
+              boxShadow: 'inset 0 0 20px rgba(255,255,255,0.2)',
+            }}
+          >
+            <motion.span
+              animate={phase === 'shuffle' ? {
+                textShadow: [
+                  '0 4px 20px rgba(0,0,0,0.2)',
+                  '0 0 40px rgba(255,255,255,0.8)',
+                  '0 4px 20px rgba(0,0,0,0.2)',
+                ],
+              } : {}}
+              transition={{
+                duration: 0.4,
+                repeat: phase === 'shuffle' ? Infinity : 0,
+              }}
+              style={{
+                fontSize: 72,
+                fontWeight: 700,
+                color: '#fff',
+                textShadow: '0 4px 20px rgba(0,0,0,0.2)',
+              }}
+            >
               ?
-            </span>
-          </div>
+            </motion.span>
+          </motion.div>
 
-          <p style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#fff',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-          }}>
+          <motion.p
+            animate={phase === 'reveal' ? { opacity: 0 } : { opacity: 1 }}
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 600,
+              color: '#fff',
+              textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+            }}
+          >
             何が出るかな...？
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ===== Main Animation Screen =====
+const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
+  const [phase, setPhase] = useState<AnimationPhase>('buildup');
+
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase('shuffle'), 800),
+      setTimeout(() => setPhase('reveal'), 2600),
+      setTimeout(onComplete, 3200),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [onComplete]);
+
+  const statusText = {
+    buildup: '準備中...',
+    shuffle: 'シャッフル中...',
+    reveal: '結果発表...',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a1628 0%, #1a365d 50%, #0d2137 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Ambient glow background */}
+      <motion.div
+        animate={{
+          opacity: phase === 'shuffle' ? [0.3, 0.6, 0.3] : phase === 'reveal' ? 0.8 : 0.2,
+          scale: phase === 'reveal' ? 1.5 : 1,
+        }}
+        transition={{
+          duration: phase === 'shuffle' ? 0.8 : 0.5,
+          repeat: phase === 'shuffle' ? Infinity : 0,
+        }}
+        style={{
+          position: 'absolute',
+          width: 400,
+          height: 400,
+          background: 'radial-gradient(circle, rgba(255,105,0,0.4) 0%, transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(40px)',
+        }}
+      />
+
+      <ParticleField phase={phase} />
+
+      {/* Status Text */}
+      <AnimatePresence mode="wait">
+        <motion.h2
+          key={phase}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3 }}
+          style={{
+            color: '#fff',
+            fontSize: 24,
+            fontWeight: 700,
+            marginBottom: 50,
+            textAlign: 'center',
+            textShadow: '0 2px 20px rgba(255,105,0,0.5)',
+            letterSpacing: 2,
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          {statusText[phase]}
+        </motion.h2>
+      </AnimatePresence>
+
+      {/* Card Container */}
+      <div style={{ position: 'relative', zIndex: 5 }}>
+        <EnergyRing phase={phase} />
+        <MysteryCard phase={phase} />
       </div>
-    </div>
+
+      {/* Bottom decorative line */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 1, delay: 0.5 }}
+        style={{
+          position: 'absolute',
+          bottom: 60,
+          width: '60%',
+          height: 2,
+          background: 'linear-gradient(90deg, transparent, rgba(255,150,50,0.5), transparent)',
+        }}
+      />
+    </motion.div>
   );
 };
 
