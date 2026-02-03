@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import Demo1Page from './pages/Demo1Page';
+import Demo2Page from './pages/Demo2Page';
 
 export default function App() {
   useEffect(() => {
@@ -17,7 +18,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/demo1" element={<Demo1Page />} />
-          {/* 新しいデモはここに追加: <Route path="/demo2" element={<Demo2Page />} /> */}
+          <Route path="/demo2" element={<Demo2Page />} />
+          {/* 新しいデモはここに追加 */}
         </Routes>
       </BrowserRouter>
     </div>
