@@ -23,6 +23,13 @@ const demos: DemoItem[] = [
     description: 'NFTシャッフル配布（ラインナップ非表示）',
     thumbnail: 'https://arweave.net/ul3PS95k8Uw3KiRegdwsinAPp-pq65GAK1NyMi9WSN8',
   },
+  {
+    id: 3,
+    path: '/demo3',
+    title: 'NFT Shuffle (Terms Agreement)',
+    description: 'NFTシャッフル配布（利用規約同意必須）',
+    thumbnail: 'https://arweave.net/ul3PS95k8Uw3KiRegdwsinAPp-pq65GAK1NyMi9WSN8',
+  },
   // 新しいデモはここに追加
 ];
 

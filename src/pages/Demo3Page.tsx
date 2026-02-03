@@ -17,6 +17,8 @@ interface ShuffleData {
   showLineup: boolean;
   showProbability: boolean;
   showShareButton: boolean;
+  requireTermsAgreement: boolean;
+  termsUrl: string;
   externalLink: string;
   remainingCount: number;
   maxCount: number;
@@ -29,16 +31,18 @@ interface ShuffleResult {
   image: string;
 }
 
-// Mock data - ラインナップ非表示パターン
+// Mock data - 利用規約同意パターン
 const mockShuffleData: ShuffleData = {
   title: "Summer Collection 2025",
-  description: "限定NFTが当たるスペシャルシャッフル！何が出るかはお楽しみ！",
+  description: "限定NFTが当たるスペシャルシャッフル！全5種類のNFTからランダムで1つゲットできます。",
   image: "https://arweave.net/ul3PS95k8Uw3KiRegdwsinAPp-pq65GAK1NyMi9WSN8",
   startDate: "2025-01-01T00:00:00",
   endDate: "2025-02-28T23:59:59",
-  showLineup: false,
-  showProbability: false,
+  showLineup: true,
+  showProbability: true,
   showShareButton: true,
+  requireTermsAgreement: true,
+  termsUrl: "https://example.com/terms",
   externalLink: "https://example.com/collection",
   remainingCount: 2,
   maxCount: 3,
@@ -57,12 +61,144 @@ const mockResult: ShuffleResult = {
   image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60",
 };
 
-// Main screen before shuffle - No Lineup
+// NFT Card Component
+const NFTCard = ({ item, showProbability }: { item: LineupItem; showProbability: boolean }) => (
+  <div style={{
+    background: '#fff',
+    borderRadius: '16px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    cursor: 'pointer',
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-4px)';
+    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+  }}
+  >
+    <div style={{ position: 'relative', paddingTop: '100%', background: '#f4f5f7' }}>
+      <img
+        src={item.image}
+        alt={item.name}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+    </div>
+    <div style={{ padding: '14px' }}>
+      <p style={{
+        margin: 0,
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#172B4D',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}>
+        {item.name}
+      </p>
+      {showProbability && (
+        <p style={{
+          margin: '6px 0 0',
+          fontSize: '13px',
+          color: '#6B778C',
+        }}>
+          {item.probability}%
+        </p>
+      )}
+    </div>
+  </div>
+);
+
+// Checkbox Component
+interface CheckboxProps {
+  checked: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  label: string;
+  linkText: string;
+  linkUrl: string;
+  suffix: string;
+}
+
+const Checkbox = ({ checked, onChange, label, linkText, linkUrl, suffix }: CheckboxProps) => (
+  <label style={{
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    cursor: 'pointer',
+    padding: '16px',
+    background: '#F4F5F7',
+    borderRadius: '12px',
+    marginBottom: '12px',
+  }}>
+    <div style={{
+      width: '24px',
+      height: '24px',
+      minWidth: '24px',
+      borderRadius: '6px',
+      border: checked ? 'none' : '2px solid #DFE1E6',
+      background: checked ? '#FF6900' : '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transition: 'all 0.2s ease',
+    }}>
+      {checked && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+    </div>
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      style={{ display: 'none' }}
+    />
+    <span style={{
+      fontSize: '14px',
+      color: '#172B4D',
+      lineHeight: '1.5',
+    }}>
+      {label}
+      {linkUrl && (
+        <a
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: '#FF6900',
+            textDecoration: 'underline',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {linkText}
+        </a>
+      )}
+      {suffix}
+    </span>
+  </label>
+);
+
+// Main screen before shuffle
 const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle: () => void }) => {
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
   };
+
+  const canShuffle = data.remainingCount > 0 && (!data.requireTermsAgreement || agreedToTerms);
 
   return (
     <div style={{
@@ -106,7 +242,7 @@ const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle:
       <div style={{
         maxWidth: '480px',
         margin: '0 auto',
-        padding: '24px 20px 100px',
+        padding: '24px 20px 180px',
       }}>
         {/* Title Card */}
         <div style={{
@@ -159,43 +295,38 @@ const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle:
           </div>
         </div>
 
-        {/* Mystery Message - ラインナップの代わり */}
-        <div style={{
-          background: '#fff',
-          borderRadius: '20px',
-          padding: '32px 24px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          textAlign: 'center',
-        }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'linear-gradient(135deg, #FF6900 0%, #FF8533 100%)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-            boxShadow: '0 4px 14px rgba(255, 105, 0, 0.3)',
-          }}>
-            <span style={{ fontSize: '28px', color: '#fff', fontWeight: '700' }}>?</span>
+        {/* Lineup Section */}
+        {data.showLineup && (
+          <div style={{ marginBottom: '24px' }}>
+            <h2 style={{
+              margin: '0 0 16px',
+              fontSize: '16px',
+              fontWeight: '700',
+              color: '#172B4D',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}>
+              <span style={{
+                width: '4px',
+                height: '20px',
+                background: '#FF6900',
+                borderRadius: '2px',
+                display: 'inline-block',
+              }} />
+              ラインナップ
+            </h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '12px',
+            }}>
+              {data.lineup.map((item) => (
+                <NFTCard key={item.id} item={item} showProbability={data.showProbability} />
+              ))}
+            </div>
           </div>
-          <h2 style={{
-            margin: '0 0 8px',
-            fontSize: '18px',
-            fontWeight: '700',
-            color: '#172B4D',
-          }}>
-            何が出るかはお楽しみ！
-          </h2>
-          <p style={{
-            margin: 0,
-            fontSize: '14px',
-            color: '#6B778C',
-          }}>
-            シャッフルして結果を確認しよう
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Fixed Bottom Button */}
@@ -209,38 +340,52 @@ const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle:
         paddingTop: '40px',
       }}>
         <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+          {/* Terms Agreement Checkbox */}
+          {data.requireTermsAgreement && (
+            <Checkbox
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              label=""
+              linkText="利用規約"
+              linkUrl={data.termsUrl}
+              suffix="に同意する"
+            />
+          )}
+
           <button
             onClick={onShuffle}
-            disabled={data.remainingCount === 0}
+            disabled={!canShuffle}
             style={{
               width: '100%',
               padding: '18px 32px',
               fontSize: '17px',
               fontWeight: '700',
               color: '#fff',
-              background: data.remainingCount > 0
+              background: canShuffle
                 ? '#FF6900'
                 : '#A5ADBA',
               border: 'none',
               borderRadius: '14px',
-              cursor: data.remainingCount > 0 ? 'pointer' : 'not-allowed',
-              boxShadow: data.remainingCount > 0
+              cursor: canShuffle ? 'pointer' : 'not-allowed',
+              boxShadow: canShuffle
                 ? '0 4px 14px rgba(255, 105, 0, 0.4)'
                 : 'none',
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              if (data.remainingCount > 0) {
+              if (canShuffle) {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 105, 0, 0.5)';
               }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(255, 105, 0, 0.4)';
+              e.currentTarget.style.boxShadow = canShuffle ? '0 4px 14px rgba(255, 105, 0, 0.4)' : 'none';
             }}
           >
-            {data.remainingCount > 0 ? 'シャッフルする' : '回数上限に達しました'}
+            {data.remainingCount === 0
+              ? '回数上限に達しました'
+              : 'シャッフルする'}
           </button>
         </div>
       </div>
@@ -248,32 +393,40 @@ const ShuffleReadyScreen = ({ data, onShuffle }: { data: ShuffleData; onShuffle:
   );
 };
 
-// Animation screen - Mystery Card Version
-const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
-  const [rotation, setRotation] = useState(0);
+// Animation screen
+const ShuffleAnimationScreen = ({ data, onComplete }: { data: ShuffleData; onComplete: () => void }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSlowing, setIsSlowing] = useState(false);
 
   useEffect(() => {
-    let animationFrame: number;
-    const startTime = Date.now();
-    const duration = 3000; // 3秒
-    const speed = 5; // 一定の回転速度（遅め）
+    let interval: ReturnType<typeof setInterval>;
+    let speed = 80;
+    let iterations = 0;
+    const maxIterations = 25;
 
     const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      iterations++;
+      setCurrentIndex(prev => (prev + 1) % data.lineup.length);
 
-      setRotation(prev => prev + speed);
+      if (iterations > maxIterations - 10) {
+        setIsSlowing(true);
+        speed += 40;
+      }
 
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
+      if (iterations >= maxIterations) {
+        clearInterval(interval);
+        setTimeout(onComplete, 500);
       } else {
-        setTimeout(onComplete, 300);
+        clearInterval(interval);
+        interval = setInterval(animate, speed);
       }
     };
 
-    animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [onComplete]);
+    interval = setInterval(animate, speed);
+    return () => clearInterval(interval);
+  }, [data.lineup.length, onComplete]);
+
+  const currentItem = data.lineup[currentIndex];
 
   return (
     <div style={{
@@ -318,9 +471,9 @@ const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
           0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.3; }
           50% { transform: translateY(-30px) rotate(180deg); opacity: 0.8; }
         }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
         }
       `}</style>
 
@@ -335,7 +488,7 @@ const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
         しばらくお待ちください...
       </h2>
 
-      {/* Mystery Card */}
+      {/* Card Display */}
       <div style={{
         width: '260px',
         height: '340px',
@@ -344,67 +497,42 @@ const ShuffleAnimationScreen = ({ onComplete }: { onComplete: () => void }) => {
         <div style={{
           width: '100%',
           height: '100%',
-          background: 'linear-gradient(135deg, #FF6900 0%, #FF8533 100%)',
+          background: '#fff',
           borderRadius: '20px',
+          overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: `rotateY(${rotation}deg)`,
-          transformStyle: 'preserve-3d',
-          transition: 'transform 0.05s linear',
+          animation: isSlowing ? 'pulse 0.5s ease-in-out infinite' : 'none',
+          transition: 'all 0.08s ease-out',
         }}>
-          {/* Card Pattern */}
           <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            borderRadius: '20px',
-            opacity: 0.1,
-            backgroundImage: `
-              repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 10px,
-                rgba(255,255,255,0.1) 10px,
-                rgba(255,255,255,0.1) 20px
-              )
-            `,
-          }} />
-
-          {/* Question Mark */}
-          <div style={{
-            width: '120px',
-            height: '120px',
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '20px',
+            position: 'relative',
+            width: '100%',
+            height: '70%',
+            background: '#f4f5f7',
           }}>
-            <span style={{
-              fontSize: '72px',
-              fontWeight: '700',
-              color: '#fff',
-              textShadow: '0 4px 20px rgba(0,0,0,0.2)',
-            }}>
-              ?
-            </span>
+            <img
+              src={currentItem.image}
+              alt={currentItem.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
           </div>
-
-          <p style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: '600',
-            color: '#fff',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+          <div style={{
+            padding: '20px',
+            textAlign: 'center',
           }}>
-            何が出るかな...？
-          </p>
+            <p style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#172B4D',
+            }}>
+              {currentItem.name}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -659,7 +787,7 @@ const ShuffleResultScreen = ({ data, result }: { data: ShuffleData; result: Shuf
 };
 
 // Main Page Component
-export default function Demo2Page() {
+export default function Demo3Page() {
   const [screen, setScreen] = useState<'ready' | 'animating' | 'result'>('ready');
   const [data] = useState<ShuffleData>(mockShuffleData);
   const [result] = useState<ShuffleResult>(mockResult);
@@ -678,7 +806,7 @@ export default function Demo2Page() {
         <ShuffleReadyScreen data={data} onShuffle={handleShuffle} />
       )}
       {screen === 'animating' && (
-        <ShuffleAnimationScreen onComplete={handleAnimationComplete} />
+        <ShuffleAnimationScreen data={data} onComplete={handleAnimationComplete} />
       )}
       {screen === 'result' && (
         <ShuffleResultScreen data={data} result={result} />
