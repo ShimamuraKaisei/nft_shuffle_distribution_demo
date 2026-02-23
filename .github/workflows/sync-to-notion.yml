@@ -1,0 +1,35 @@
+name: Sync Markdown to Notion
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "BUSINESS_OVERVIEW.md"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm ci
+
+      - name: Sync to Notion
+        working-directory: scripts
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+          MARKDOWN_PATH: ../BUSINESS_OVERVIEW.md
+        run: node sync-to-notion.mjs
