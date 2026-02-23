@@ -1,0 +1,9 @@
+{
+  "name": "sync-to-notion",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@tryfabric/martian": "^1.2.4"
+  }
+}
